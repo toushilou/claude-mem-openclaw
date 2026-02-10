@@ -1,0 +1,65 @@
+{
+  "name": "claude-mem-openclaw",
+  "version": "1.0.0",
+  "description": "分层记忆压缩系统 for OpenClaw - 基于claude-mem理念，显著减少token消耗",
+  "main": "src/index.js",
+  "bin": {
+    "claude-mem-check": "./bin/claude-mem-cli.js"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "examples/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node src/memory_system.js",
+    "heartbeat": "node examples/heartbeat-optimized.js",
+    "scan": "node src/summary_generator.js scan",
+    "test": "node tests/test-runner.js",
+    "test:search": "node tests/search.test.js",
+    "test:summary": "node tests/summary.test.js",
+    "test:heartbeat": "node tests/heartbeat.test.js",
+    "benchmark": "node tests/benchmark.js",
+    "lint": "eslint src/ tests/ examples/",
+    "format": "prettier --write src/**/*.js tests/**/*.js examples/**/*.js",
+    "docs": "node scripts/generate-docs.js"
+  },
+  "keywords": [
+    "openclaw",
+    "claude-mem",
+    "memory",
+    "compression",
+    "token-optimization",
+    "heartbeat",
+    "ai",
+    "assistant",
+    "search",
+    "summary"
+  ],
+  "author": "小t (xiao_t) <your-email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/claude-mem-openclaw.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/claude-mem-openclaw/issues"
+  },
+  "homepage": "https://github.com/your-username/claude-mem-openclaw#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "eslint": "^8.0.0",
+    "mocha": "^10.0.0",
+    "prettier": "^2.7.1"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.2.0"
+  }
+}
