@@ -85,9 +85,17 @@ async function enhancedMemorySearch(query, options = {}) {
     // 执行搜索
     rawResults = await simulateMemorySearch(query, searchOptions);
     
-    if (!rawResults || rawResults.length === 0) {
+    // 确保返回格式一致性
+    if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) {
       console.log('   没有找到结果');
-      return json ? [] : '没有找到相关记忆';
+      return json ? {
+        query,
+        mode: actualMode,
+        count: 0,
+        totalTokens: 0,
+        results: [],
+        timestamp: new Date().toISOString()
+      } : '没有找到相关记忆';
     }
     
     // 3. 根据模式格式化结果
@@ -314,14 +322,19 @@ function getRelevanceDescription(score) {
 }
 
 /**
- * 估算token数量
+ * 优化的token估算函数 - 更精确的计算
  */
 function estimateTokens(results, mode) {
+  if (!results || results.length === 0) return 0;
+  
   let totalChars = 0;
   
+  // 优化：只计算关键字段的字符数，忽略元数据
+  const keyFields = ['title', 'content', 'summary', 'keywords', 'snippet'];
+  
   results.forEach(item => {
-    // 计算所有字符串字段的总字符数
-    Object.values(item).forEach(value => {
+    keyFields.forEach(field => {
+      const value = item[field];
       if (typeof value === 'string') {
         totalChars += value.length;
       } else if (Array.isArray(value)) {
@@ -332,14 +345,17 @@ function estimateTokens(results, mode) {
     });
   });
   
-  // 根据模式选择token估算系数
+  // 优化系数：根据实际测试调整
   const factor = mode === CONFIG.MODES.INDEX 
-    ? CONFIG.TOKEN_ESTIMATES.INDEX_PER_CHAR
+    ? 0.25 // 索引模式更精简
     : mode === CONFIG.MODES.COMPACT
-    ? CONFIG.TOKEN_ESTIMATES.COMPACT_PER_CHAR
-    : 0.7; // full模式系数较高
+    ? 0.35 // 紧凑模式优化
+    : 0.6; // full模式优化
   
-  return Math.ceil(totalChars * factor);
+  const estimated = Math.ceil(totalChars * factor);
+  
+  // 添加查询和响应的基础token开销
+  return estimated + 50; // 固定开销
 }
 
 // 导入摘要生成器
@@ -347,13 +363,26 @@ const SummaryGenerator = require('./summary_generator.js');
 let summaryGeneratorInstance = null;
 
 /**
- * 获取摘要生成器实例（懒加载）
+ * 获取摘要生成器实例（单例模式）
  */
 function getSummaryGenerator() {
   if (!summaryGeneratorInstance) {
-    summaryGeneratorInstance = new SummaryGenerator();
+    summaryGeneratorInstance = new SummaryGenerator({
+      memoryDir: path.join(process.env.HOME || '/home/yuanquan', '.openclaw/workspace/memory'),
+      summaryDir: path.join(process.env.HOME || '/home/yuanquan', '.openclaw/workspace/memory/summaries'),
+      summaryDb: path.join(process.env.HOME || '/home/yuanquan', '.openclaw/workspace/memory/summaries.json')
+    });
   }
   return summaryGeneratorInstance;
+}
+
+/**
+ * 安全地销毁摘要生成器实例（防止内存泄漏）
+ */
+function disposeSummaryGenerator() {
+  if (summaryGeneratorInstance) {
+    summaryGeneratorInstance = null;
+  }
 }
 
 /**

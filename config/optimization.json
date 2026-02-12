@@ -1,0 +1,58 @@
+{
+  "version": "1.0.1",
+  "optimization": {
+    "tokenEstimation": {
+      "indexPerChar": 0.25,
+      "compactPerChar": 0.35,
+      "fullPerChar": 0.60,
+      "baseOverhead": 50
+    },
+    "searchStrategy": {
+      "initialResultsLimit": 8,
+      "summarySelectionCount": 2,
+      "maxResultsPerStage": 3,
+      "minScoreThreshold": 0.3
+    },
+    "performance": {
+      "cacheEnabled": true,
+      "cacheTTL": 300, // 5分钟
+      "maxCacheSize": 100,
+      "concurrentRequests": 2
+    },
+    "compression": {
+      "summaryLength": 150,
+      "titleLength": 60,
+      "keywordsCount": 5,
+      "minSnippetLength": 30
+    },
+    "logging": {
+      "enabled": true,
+      "level": "info",
+      "performanceMetrics": true
+    }
+  },
+  "enhancements": {
+    "memoryLeak": {
+      "autoDispose": true,
+      "gcInterval": 300000 // 5分钟
+    },
+    "parallelProcessing": {
+      "enabled": false,
+      "maxWorkers": 2
+    },
+    "searchCaching": {
+      "enabled": true,
+      "maxAge": 180000 // 3分钟
+    }
+  },
+  "metrics": {
+    "enabled": true,
+    "collectionInterval": 60000, // 1分钟
+    "retentionTime": 3600000, // 1小时
+    "thresholds": {
+      "responseTime": 500, // ms
+      "tokenUsage": 500, // tokens
+      "memoryUsage": 50 // MB
+    }
+  }
+}

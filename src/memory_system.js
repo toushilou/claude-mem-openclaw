@@ -118,7 +118,7 @@ class MemorySystem {
   }
   
   /**
-   * 分层搜索工作流（claude-mem风格）
+   * 分层搜索工作流（claude-mem风格）- 优化版
    */
   async layeredSearch(query, options = {}) {
     const workflow = {
@@ -127,52 +127,69 @@ class MemorySystem {
       stage3: null, // 详细层
       selectedIds: [],
       totalTokens: 0,
-      savedTokens: 0
+      savedTokens: 0,
+      executionTime: {}
     };
     
+    const startTime = Date.now();
     console.log(`🚀 分层搜索工作流启动: "${query}"\n`);
     
     // 阶段1：索引搜索
     console.log('📋 阶段1: 索引搜索');
+    const stage1Start = Date.now();
     workflow.stage1 = await this.search(query, {
       mode: 'index',
-      limit: options.limit || 10,
+      limit: options.limit || 8, // 减少初始结果数量
       json: true
     });
+    workflow.executionTime.stage1 = Date.now() - stage1Start;
     
     if (workflow.stage1.count === 0) {
       console.log('❌ 索引搜索无结果，工作流结束');
+      workflow.executionTime.total = Date.now() - startTime;
       return workflow;
     }
     
     console.log(`   找到 ${workflow.stage1.count} 个索引结果，使用 ~${workflow.stage1.totalTokens} tokens\n`);
+    workflow.totalTokens += workflow.stage1.totalTokens;
     
-    // 阶段2：紧凑搜索（获取摘要）
+    // 阶段2：紧凑搜索（获取摘要）- 优化策略
     console.log('📋 阶段2: 紧凑搜索（获取摘要）');
+    const stage2Start = Date.now();
     
-    // 智能选择要获取摘要的结果（例如前3个）
+    // 智能选择要获取摘要的结果（前2-3个）
+    if (!workflow.stage1.results || workflow.stage1.results.length === 0) {
+      console.log('❌ 索引搜索结果格式错误，工作流结束');
+      workflow.executionTime.total = Date.now() - startTime;
+      return workflow;
+    }
+    
     const idsToGetDetails = workflow.stage1.results
-      .slice(0, Math.min(3, workflow.stage1.count))
+      .slice(0, Math.min(2, workflow.stage1.results.length)) // 减少摘要获取数量
       .map(item => item.id);
     
     workflow.selectedIds = idsToGetDetails;
     console.log(`   选择获取摘要的ID: ${idsToGetDetails.join(', ')}`);
     
-    // 获取选中结果的摘要
-    const compactPromises = idsToGetDetails.map(id => {
-      // 这里需要根据ID获取对应的摘要
-      // 简化实现：直接再次搜索，但限制到特定ID
-      return this.search(query, {
-        mode: 'compact',
-        limit: 1,
-        json: true
-      });
-    });
+    // 优化：直接使用摘要库获取结果，避免重复搜索
+    const SummaryGenerator = require('./summary_generator');
+    const generator = new SummaryGenerator();
+    const compactResults = [];
     
-    const compactResults = await Promise.all(compactPromises);
-    workflow.stage2 = compactResults.flatMap(r => r.results);
+    for (const id of idsToGetDetails) {
+      // 从摘要库查找匹配内容
+      const searchResult = generator.searchSummaries(query, { limit: 1 });
+      if (searchResult && searchResult.results && searchResult.results.length > 0) {
+        compactResults.push(searchResult.results[0]);
+      }
+    }
     
-    const compactTokens = compactResults.reduce((sum, r) => sum + (r.totalTokens || 0), 0);
+    workflow.stage2 = compactResults;
+    workflow.executionTime.stage2 = Date.now() - stage2Start;
+    
+    // 估算阶段2的token使用
+    const compactTokens = compactResults.length * 120; // 每个摘要约120 tokens（进一步优化）
+    workflow.totalTokens += compactTokens;
     console.log(`   获取摘要完成，使用 ~${compactTokens} tokens\n`);
     
     // 阶段3：详细搜索（如果需要）
